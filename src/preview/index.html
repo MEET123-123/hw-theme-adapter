@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HwFlex · 华为全形态多状态前端交互与分辨率适配工作台</title>
+  <link rel="stylesheet" href="/hw-components.css" />
+  <script src="/hw-components.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 10px 14px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .toolbar-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    header h1 {
+      font-size: 14px;
+      margin: 0 6px 0 0;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    select, button, input {
+      background: #0f172a;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    input[type="number"] { width: 64px; }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button.active { background: var(--accent); color: #0f172a; border-color: var(--accent); font-weight: 600; }
+    button.primary { background: #0284c7; border-color: #38bdf8; color: #fff; font-weight: 600; }
+    button.primary:hover { background: #0369a1; }
+    .presets, .state-pills { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+    .state-pill {
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .state-pill.active { background: var(--accent); color: #0f172a; border-color: var(--accent); font-weight: 600; }
+    .state-pill .cat { font-size: 10px; opacity: 0.72; margin-left: 3px; }
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 440px;
+      flex: 1;
+      min-height: 0;
+    }
+    .stage-wrap {
+      padding: 14px;
+      overflow: auto;
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .device-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .device-title {
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      gap: 8px;
+    }
+    .viewport {
+      position: relative;
+      background: #020617;
+      overflow: hidden;
+      border: 2px solid #475569;
+      border-radius: 10px;
+      user-select: none;
+      touch-action: none;
+    }
+    #adaptStage { cursor: crosshair; border-color: #0ea5e9; }
+    .layer-item {
+      position: absolute;
+      pointer-events: none;
+    }
+    .layer-item img, .layer-item video {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .hinge-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-left: 2px dashed rgba(244, 114, 182, 0.75);
+      background: rgba(244, 114, 182, 0.12);
+      pointer-events: none;
+      z-index: 990;
+    }
+    .hit-target {
+      position: absolute;
+      border: 1px dotted rgba(34, 197, 94, 0.75);
+      background: rgba(34, 197, 94, 0.08);
+      pointer-events: none;
+      z-index: 995;
+    }
+    .bbox-overlay {
+      position: absolute;
+      border: 1.5px dashed rgba(56, 189, 248, 0.85);
+      background: rgba(56, 189, 248, 0.06);
+      pointer-events: none;
+      font-size: 10px;
+      color: #fff;
+      z-index: 980;
+    }
+    .bbox-label {
+      background: rgba(15, 23, 42, 0.82);
+      padding: 1px 4px;
+      border-radius: 3px;
+      display: inline-block;
+      white-space: nowrap;
+    }
+    .gesture-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+    }
+    .trace-banner {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .trace-pill {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: monospace;
+    }
+    .export-status {
+      font-size: 11px;
+      color: var(--ok);
+    }
+    aside {
+      border-left: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+    .tabs button { flex: 1; border: none; border-radius: 0; padding: 8px 4px; background: transparent; font-size: 11px; min-width: 52px; }
+    .tabs button.active { background: #0f172a; color: var(--accent); border-bottom: 2px solid var(--accent); }
+    .tab-body { padding: 12px; overflow: auto; flex: 1; font-size: 12px; }
+    .badge { padding: 2px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; }
+    .badge.ok { background: rgba(34, 197, 94, 0.2); color: var(--ok); }
+    .badge.bad { background: rgba(239, 68, 68, 0.2); color: var(--bad); }
+    .badge.warn { background: rgba(245, 158, 11, 0.2); color: var(--warn); }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
+    th, td { border-bottom: 1px solid var(--border); padding: 4px 3px; text-align: left; }
+    tr.active-row { background: rgba(56, 189, 248, 0.12); }
+    pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; background: #0f172a; padding: 8px; border-radius: 6px; margin: 0; }
+    .var-card { background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+    .var-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .val-btn { padding: 2px 7px; font-size: 11px; margin-right: 4px; margin-top: 3px; }
+    .val-btn.active { background: var(--ok); color: #052e16; border-color: var(--ok); font-weight: 600; }
+    .thumb-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .thumb-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 6px; background: #1e293b; cursor: pointer; font-size: 10px; }
+    .thumb-slot.active { border-color: var(--accent); background: rgba(56, 189, 248, 0.16); color: var(--accent); font-weight: 600; }
+    .thumb-slot img { width: 34px; height: 34px; object-fit: contain; border-radius: 3px; background: #020617; }
+    .stage-layers-root { position: absolute; inset: 0; pointer-events: none; }
+    .stage-overlays { position: absolute; inset: 0; pointer-events: none; z-index: 950; }
+    .container-overlay {
+      position: absolute;
+      border: 2px dashed rgba(245, 158, 11, 0.9);
+      background: rgba(245, 158, 11, 0.05);
+      pointer-events: none;
+      z-index: 970;
+      font-size: 10px;
+    }
+    .container-label {
+      background: rgba(120, 53, 15, 0.88);
+      color: #fde68a;
+      padding: 1px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+      display: inline-block;
+    }
+    .mc-select-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 11px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .mc-check-list {
+      max-height: 150px;
+      overflow: auto;
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px;
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+    .mc-check-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="toolbar-row">
+      <h1>HwFlex 多交互状态前端适配与导出工作台</h1>
+      <label>主题:
+        <select id="themeSelect"></select>
+      </label>
+      <label>算法:
+        <select id="algoSelect"></select>
+      </label>
+      <label>W:
+        <input type="number" id="customW" min="240" max="4000" value="1080" />
+      </label>
+      <label>H:
+        <input type="number" id="customH" min="240" max="4000" value="2400" />
+      </label>
+      <button id="btnApplyRes">应用分辨率</button>
+      <select id="exportMode">
+        <option value="target">当前分辨率定向适配 (target)</option>
+        <option value="universal">全形态通用响应式 (universal)</option>
+      </select>
+      <button id="btnExport" class="primary">导出适配包 (.hwt + 前端 + 报告)</button>
+      <label style="display:flex;align-items:center;gap:3px;">
+        <input type="checkbox" id="useComponents" checked /> 组件化容器 (&lt;hw-drawer&gt;/&lt;hw-image-switcher&gt;)
+      </label>
+      <label style="display:flex;align-items:center;gap:3px;">
+        <input type="checkbox" id="showCompFrames" /> 组件边界
+      </label>
+      <label style="display:flex;align-items:center;gap:3px;">
+        <input type="checkbox" id="showContainers" checked /> 父容器框
+      </label>
+      <label style="display:flex;align-items:center;gap:3px;">
+        <input type="checkbox" id="showBbox" /> 语义框
+      </label>
+      <label style="display:flex;align-items:center;gap:3px;">
+        <input type="checkbox" id="showHits" checked /> 交互热区
+      </label>
+      <label style="display:flex;align-items:center;gap:3px;">
+        <input type="checkbox" id="showHinges" checked /> 折痕线
+      </label>
+    </div>
+    <div class="toolbar-row">
+      <div id="devicePresets" class="presets"></div>
+    </div>
+    <div class="toolbar-row">
+      <span style="font-size:11px;color:var(--muted);">自动识别交互状态:</span>
+      <div id="stateBar" class="state-pills"></div>
+      <button id="btnSimReset">重置状态</button>
+    </div>
+    <div class="trace-banner">
+      <span>实时交互追踪 (可在右侧 Adapted 画布直接点击 / 双击 / 拖拽滑动):</span>
+      <span id="simLog" class="trace-pill">就绪 · 当前状态 S0_default</span>
+      <span id="exportStatus" class="export-status"></span>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="stage-wrap">
+      <div class="device-card">
+        <div class="device-title">
+          <span>原始脚本渲染 (Original)</span>
+          <span id="origMeta" style="color:var(--muted)"></span>
+        </div>
+        <div id="origStage" class="viewport"></div>
+      </div>
+      <div class="device-card">
+        <div class="device-title">
+          <span>前端转义响应式交互画布 (Adapted · 可直接交互)</span>
+          <span id="adaptMeta" style="color:var(--accent)"></span>
+        </div>
+        <div id="adaptStage" class="viewport"></div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="states">状态布局分析</button>
+        <button class="tab-btn" data-tab="containers">容器树 &amp; 合并</button>
+        <button class="tab-btn" data-tab="components">前端组件</button>
+        <button class="tab-btn" data-tab="vars">变量状态机</button>
+        <button class="tab-btn" data-tab="metrics">质检</button>
+        <button class="tab-btn" data-tab="html">HTML</button>
+        <button class="tab-btn" data-tab="css">CSS</button>
+        <button class="tab-btn" data-tab="interactions">交互图</button>
+        <button class="tab-btn" data-tab="ir">IR</button>
+        <button class="tab-btn" data-tab="xml">XML</button>
+      </div>
+      <div id="tabBody" class="tab-body">加载中...</div>
+    </aside>
+  </div>
+
+  <script>
+    const state = {
+      themes: [],
+      devices: [],
+      algorithms: ['hwflex', 'css_grid_v2'],
+      currentTheme: null,
+      currentDevice: null,
+      customResolution: null,
+      viewportW: 1080,
+      viewportH: 2400,
+      algo: 'hwflex',
+      compileMode: 'target',
+      activeStateId: 'S0_default',
+      liveVars: {},
+      stateMachine: null,
+      layoutAnalysis: null,
+      uiComponents: null,
+      uiComponentBoxes: null,
+      containerData: null,
+      stageCacheKey: null,
+      traceHistory: [],
+      tab: 'states',
+      ir: null,
+      validation: null,
+      xml: null,
+      html: null,
+      css: null,
+      interactions: null,
+    };
+
+    const roleColors = {
+      background: '#64748b',
+      clock: '#38bdf8',
+      date: '#818cf8',
+      weather: '#34d399',
+      widget_card: '#f59e0b',
+      hero: '#f472b6',
+      dock_left: '#22d3ee',
+      dock_right: '#22d3ee',
+      dock_center: '#22d3ee',
+      modal_panel: '#a78bfa',
+      decoration: '#94a3b8',
+    };
+
+    function previewOptions() {
+      const resolution = state.customResolution || state.currentDevice;
+      return {
+        algo: state.algo,
+        compileMode: state.compileMode,
+        w: resolution?.w ?? 1080,
+        h: resolution?.h ?? 2400,
+        ...(state.customResolution || !state.currentDevice ? {} : { deviceId: state.currentDevice.id }),
+      };
+    }
+
+    function previewQuery() {
+      return new URLSearchParams(previewOptions()).toString();
+    }
+
+    let interactionQueue = Promise.resolve();
+
+    async function init() {
+      const [devRes, thRes] = await Promise.all([
+        fetch('/api/devices'),
+        fetch('/api/themes'),
+      ]);
+      const devJson = await devRes.json();
+      state.devices = devJson.devices;
+      state.algorithms = devJson.algorithms || ['hwflex', 'css_grid_v2'];
+      state.themes = await thRes.json();
+
+      const presetDiv = document.getElementById('devicePresets');
+      const keyIds = ['phone_2400', 'pura_x_portrait', 'pura_x_cover', 'pura_x_land', 'pura_x_max_portrait', 'pura_x_max_land', 'dual_fold_unfolded', 'tri_fold_triple', 'tablet_land', 'phone_land'];
+      const shownDevices = keyIds.map(id => state.devices.find(d => d.id === id)).filter(Boolean);
+      state.currentDevice = shownDevices[0];
+      state.viewportW = state.currentDevice.w;
+      state.viewportH = state.currentDevice.h;
+      document.getElementById('customW').value = state.viewportW;
+      document.getElementById('customH').value = state.viewportH;
+
+      presetDiv.innerHTML = shownDevices.map((d, idx) =>
+        `<button class="preset ${idx === 0 ? 'active' : ''}" data-id="${d.id}">${d.label}</button>`
+      ).join('');
+
+      presetDiv.querySelectorAll('.preset').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          presetDiv.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.currentDevice = state.devices.find(d => d.id === btn.dataset.id);
+          state.customResolution = null;
+          state.viewportW = state.currentDevice.w;
+          state.viewportH = state.currentDevice.h;
+          document.getElementById('customW').value = state.viewportW;
+          document.getElementById('customH').value = state.viewportH;
+          await loadThemeData();
+        });
+      });
+
+      document.getElementById('btnApplyRes').addEventListener('click', async () => {
+        const w = Math.max(240, Math.min(4000, Number(document.getElementById('customW').value) || 1080));
+        const h = Math.max(240, Math.min(4000, Number(document.getElementById('customH').value) || 2400));
+        state.viewportW = w;
+        state.viewportH = h;
+        presetDiv.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+        state.currentDevice = state.devices.find(d => d.w === w && d.h === h) || null;
+        state.customResolution = state.currentDevice ? null : { w, h };
+        await loadThemeData();
+      });
+
+      document.getElementById('btnExport').addEventListener('click', exportCurrentResolution);
+      document.getElementById('exportMode').addEventListener('change', event => {
+        state.compileMode = event.target.value;
+        loadThemeData();
+      });
+
+      const algoSel = document.getElementById('algoSelect');
+      algoSel.innerHTML = state.algorithms.map(a => `<option value="${a}">${a}</option>`).join('');
+      algoSel.addEventListener('change', () => {
+        state.algo = algoSel.value;
+        loadThemeData();
+      });
+
+      const sel = document.getElementById('themeSelect');
+      sel.replaceChildren(...state.themes.map(t => new Option(t.file, t.file)));
+      state.currentTheme = state.themes[0]?.file;
+      sel.addEventListener('change', () => {
+        state.currentTheme = sel.value;
+        state.liveVars = {};
+        state.activeStateId = 'S0_default';
+        state.traceHistory = [];
+        loadThemeData();
+      });
+
+      ['showBbox', 'showHits', 'showHinges', 'useComponents', 'showCompFrames', 'showContainers'].forEach(id =>
+        document.getElementById(id).addEventListener('change', renderBoth)
+      );
+
+      document.getElementById('btnSimReset').addEventListener('click', () => {
+        dispatchInteraction({ type: 'reset' });
+      });
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.tab = btn.dataset.tab;
+          renderTab();
+        });
+      });
+
+      bindStagePointerEvents();
+      await loadThemeData();
+    }
+
+    async function loadStatesAndAnalysis() {
+      if (!state.currentTheme) return;
+      const enc = encodeURIComponent(state.currentTheme);
+      const query = previewQuery();
+      const [stRes, compRes, cntRes] = await Promise.all([
+        fetch(`/api/theme/${enc}/states?${query}`),
+        fetch(`/api/theme/${enc}/components?${query}`),
+        fetch(`/api/theme/${enc}/containers?${query}`),
+      ]);
+      const json = await stRes.json();
+      const compJson = await compRes.json();
+      const cntJson = await cntRes.json();
+      if (enc !== encodeURIComponent(state.currentTheme) || query !== previewQuery()) return;
+      state.stateMachine = json.stateMachine;
+      state.layoutAnalysis = json.layoutAnalysis;
+      state.uiComponents = compJson.uiComponents;
+      state.uiComponentBoxes = compJson;
+      state.containerData = cntJson;
+      if (json.device) {
+        state.currentDevice = json.device;
+        state.viewportW = json.device.w;
+        state.viewportH = json.device.h;
+      }
+      renderStateBar();
+      if (state.tab === 'states' || state.tab === 'vars' || state.tab === 'components' || state.tab === 'containers') renderTab();
+    }
+
+    async function loadThemeData() {
+      if (!state.currentTheme) return;
+      const enc = encodeURIComponent(state.currentTheme);
+      const q = `?${previewQuery()}`;
+      const [irRes, valRes, xmlRes, htmlRes, cssRes, intRes] = await Promise.all([
+        fetch(`/api/theme/${enc}/ir${q}`),
+        fetch(`/api/theme/${enc}/validation${q}`),
+        fetch(`/api/theme/${enc}/xml${q}`),
+        fetch(`/api/theme/${enc}/html${q}`),
+        fetch(`/api/theme/${enc}/css${q}`),
+        fetch(`/api/theme/${enc}/interactions${q}`),
+      ]);
+      if (![irRes, valRes, xmlRes, htmlRes, cssRes, intRes].every(response => response.ok)) {
+        document.getElementById('simLog').textContent = '当前主题加载失败';
+        return;
+      }
+      const [ir, validation, xml, html, css, interactions] = await Promise.all([
+        irRes.json(), valRes.json(), xmlRes.text(), htmlRes.text(), cssRes.text(), intRes.json(),
+      ]);
+      if (enc !== encodeURIComponent(state.currentTheme) || q !== `?${previewQuery()}`) return;
+      Object.assign(state, { ir, validation, xml, html, css, interactions });
+      await loadStatesAndAnalysis();
+      renderTab();
+      await renderBoth();
+    }
+
+    function renderStateBar() {
+      const bar = document.getElementById('stateBar');
+      const states = state.stateMachine?.states || [];
+      bar.innerHTML = states.map(s => `
+        <button class="state-pill ${s.id === state.activeStateId ? 'active' : ''}" data-state-id="${s.id}" title="${escapeHtml(JSON.stringify(s.vars))}">
+          ${escapeHtml(s.label)}<span class="cat">[${s.category}]</span>
+        </button>
+      `).join('');
+      bar.querySelectorAll('.state-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          dispatchInteraction({ type: 'state_select', stateId: btn.dataset.stateId });
+        });
+      });
+    }
+
+    function dispatchInteraction(event) {
+      if (!state.currentTheme) return;
+      const theme = state.currentTheme;
+      const query = previewQuery();
+      interactionQueue = interactionQueue.then(() => {
+        if (state.currentTheme !== theme || previewQuery() !== query) return;
+        return runInteraction(event);
+      }).catch(() => {
+        document.getElementById('simLog').textContent = '交互执行失败';
+      });
+      return interactionQueue;
+    }
+
+    async function runInteraction(event) {
+      const enc = encodeURIComponent(state.currentTheme);
+      const query = previewQuery();
+      const res = await fetch(`/api/theme/${enc}/interact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'adapted',
+          ...previewOptions(),
+          vars: state.liveVars,
+          event,
+        }),
+      });
+      if (!res.ok) {
+        document.getElementById('simLog').textContent = '交互执行失败';
+        return;
+      }
+      const out = await res.json();
+      if (enc !== encodeURIComponent(state.currentTheme) || query !== previewQuery()) return;
+      state.liveVars = out.vars || {};
+      state.activeStateId = out.activeStateId || 'S0_default';
+
+      const parts = [];
+      if (out.unlocked) parts.push('🔓 UNLOCK 触发解锁');
+      if (out.launchedApp) parts.push(`🚀 启动 ${out.launchedApp}`);
+      for (const [k, ch] of Object.entries(out.changedVars || {})) {
+        parts.push(`${k}: ${ch.from}→${ch.to}`);
+      }
+      if (parts.length === 0 && out.executedCommands?.length) {
+        parts.push(out.executedCommands.map(c => c.type + (c.target ? ':' + c.target : '')).join(', '));
+      }
+      const msg = parts.length
+        ? `[${event.type}] 状态=${state.activeStateId} · ${parts.join(' | ')}`
+        : `[${event.type}] 未命中有效状态变更 (当前 ${state.activeStateId})`;
+      document.getElementById('simLog').textContent = msg;
+      state.traceHistory.unshift({ time: new Date().toLocaleTimeString(), msg });
+      state.traceHistory = state.traceHistory.slice(0, 15);
+
+      renderStateBar();
+      await renderBoth();
+      if (state.tab === 'states' || state.tab === 'vars' || state.tab === 'components') renderTab();
+    }
+
+    function bindStagePointerEvents() {
+      const stage = document.getElementById('adaptStage');
+      let dragStart = null;
+      let downTime = 0;
+
+      const toLogical = (clientX, clientY) => {
+        const rect = stage.getBoundingClientRect();
+        const scale = Math.max(0.01, rect.width / state.viewportW);
+        return {
+          dx: clientX - rect.left,
+          dy: clientY - rect.top,
+          lx: (clientX - rect.left) / scale,
+          ly: (clientY - rect.top) / scale,
+        };
+      };
+
+      stage.addEventListener('pointerdown', (e) => {
+        dragStart = toLogical(e.clientX, e.clientY);
+        downTime = performance.now();
+        stage.setPointerCapture?.(e.pointerId);
+      });
+
+      stage.addEventListener('pointermove', (e) => {
+        if (!dragStart) return;
+        const cur = toLogical(e.clientX, e.clientY);
+        drawGestureOverlay(stage, dragStart.dx, dragStart.dy, cur.dx, cur.dy);
+      });
+
+      stage.addEventListener('pointerup', (e) => {
+        if (!dragStart) return;
+        const end = toLogical(e.clientX, e.clientY);
+        const dt = performance.now() - downTime;
+        const dispDist = Math.hypot(end.dx - dragStart.dx, end.dy - dragStart.dy);
+        const start = dragStart;
+        dragStart = null;
+        clearGestureOverlay(stage);
+
+        if (dispDist >= 18) {
+          dispatchInteraction({
+            type: 'swipe',
+            beginX: Math.round(start.lx),
+            beginY: Math.round(start.ly),
+            x: Math.round(end.lx),
+            y: Math.round(end.ly),
+          });
+        } else if (dt >= 480) {
+          dispatchInteraction({
+            type: 'long',
+            x: Math.round(end.lx),
+            y: Math.round(end.ly),
+          });
+        } else {
+          dispatchInteraction({
+            type: 'tap',
+            x: Math.round(end.lx),
+            y: Math.round(end.ly),
+          });
+        }
+      });
+
+      stage.addEventListener('pointercancel', () => {
+        dragStart = null;
+        clearGestureOverlay(stage);
+      });
+
+      stage.addEventListener('dblclick', (e) => {
+        const pt = toLogical(e.clientX, e.clientY);
+        dispatchInteraction({
+          type: 'double',
+          x: Math.round(pt.lx),
+          y: Math.round(pt.ly),
+        });
+      });
+    }
+
+    function drawGestureOverlay(stage, x1, y1, x2, y2) {
+      let svg = stage.querySelector('svg.gesture-overlay');
+      if (!svg) {
+        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'gesture-overlay');
+        stage.appendChild(svg);
+      }
+      svg.innerHTML = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="4 3" /><circle cx="${x2}" cy="${y2}" r="6" fill="rgba(56,189,248,0.45)" stroke="#38bdf8" />`;
+    }
+
+    function clearGestureOverlay(stage) {
+      const svg = stage.querySelector('svg.gesture-overlay');
+      if (svg) svg.remove();
+    }
+
+    async function exportCurrentResolution() {
+      if (!state.currentTheme) return;
+      const statusEl = document.getElementById('exportStatus');
+      statusEl.textContent = '正在导出...';
+      const enc = encodeURIComponent(state.currentTheme);
+      const res = await fetch(`/api/theme/${enc}/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...previewOptions(),
+          repack: true,
+        }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (out.ok) {
+        const verdict = out.summary.allPassed ? '核验通过' : '存在待检查项';
+        statusEl.textContent = `已导出至 ${out.outDir} · ${out.summary.manifestCount} 份脚本 · ${verdict}`;
+      } else {
+        statusEl.textContent = `导出失败: ${out.error || '未知错误'}`;
+      }
+    }
+
+    async function renderBoth() {
+      if (!state.currentTheme) return;
+      const enc = encodeURIComponent(state.currentTheme);
+      const w = state.viewportW;
+      const h = state.viewportH;
+      const query = previewQuery();
+      const varsQ = encodeURIComponent(JSON.stringify(state.liveVars));
+      const stQ = state.activeStateId !== 'custom' ? `&stateId=${encodeURIComponent(state.activeStateId)}` : '';
+      const [origRes, adaptRes] = await Promise.all([
+        fetch(`/api/theme/${enc}/render?mode=orig&${query}&vars=${varsQ}${stQ}`),
+        fetch(`/api/theme/${enc}/render?mode=adapted&${query}&vars=${varsQ}${stQ}`),
+      ]);
+      if (!origRes.ok || !adaptRes.ok) return;
+      const origData = await origRes.json();
+      const adaptData = await adaptRes.json();
+      if (enc !== encodeURIComponent(state.currentTheme) || query !== previewQuery() ||
+          varsQ !== encodeURIComponent(JSON.stringify(state.liveVars))) return;
+      paintStage(document.getElementById('origStage'), origData, false);
+      paintStage(document.getElementById('adaptStage'), adaptData, true);
+      document.getElementById('origMeta').textContent = `${w}×${h} · ${origData.scene}`;
+      document.getElementById('adaptMeta').textContent = `${w}×${h} · ${state.currentDevice?.breakpoint || 'custom'} · ${adaptData.activeStateId} · NaN:${adaptData.nanCount}`;
+    }
+
+    function buildLayerDiv(item, displayScale, encTheme) {
+      const div = document.createElement('div');
+      div.className = 'layer-item';
+      div.style.left = (item.x * displayScale) + 'px';
+      div.style.top = (item.y * displayScale) + 'px';
+      div.style.width = (item.w * displayScale) + 'px';
+      div.style.height = (item.h * displayScale) + 'px';
+      if (item.alpha !== undefined && item.alpha < 255) {
+        div.style.opacity = String(Math.max(0, Math.min(1, item.alpha / 255)));
+      }
+      if (item.resolvedAsset && /\.(png|jpg|jpeg|webp|gif|mp4)$/i.test(item.resolvedAsset)) {
+        const isVideo = /\.mp4$/i.test(item.resolvedAsset);
+        const media = document.createElement(isVideo ? 'video' : 'img');
+        media.src = `/api/theme/${encTheme}/asset/${encodeURIComponent(item.resolvedAsset).replace(/%2F/g, '/')}`;
+        media.style.objectFit = item.scaleType === 'center_crop' ? 'cover' : 'fill';
+        if (isVideo) Object.assign(media, { muted: true, loop: true, autoplay: true, playsInline: true });
+        div.appendChild(media);
+      } else if (item.tagLower === 'text' || item.tagLower === 'datetime') {
+        div.style.color = item.color || '#ffffff';
+        div.style.fontSize = Math.max(9, (item.fontSize || 32) * displayScale) + 'px';
+        div.style.lineHeight = '1.15';
+        div.style.whiteSpace = 'nowrap';
+        div.style.fontWeight = '600';
+        div.style.textShadow = '0 1px 3px rgba(0,0,0,0.8)';
+        div.textContent = item.text || '';
+      } else if (item.tagLower === 'rectangle') {
+        div.style.background = item.fillColor || 'rgba(255,255,255,0.25)';
+        div.style.borderRadius = '4px';
+      } else if (item.tagLower === 'circle') {
+        div.style.border = '1px solid rgba(255,255,255,0.5)';
+        div.style.borderRadius = '50%';
+      }
+      return div;
+    }
+
+    function paintStage(container, data, isAdapted) {
+      const maxDisplayW = 420;
+      const maxDisplayH = 540;
+      const displayScale = Math.min(maxDisplayW / data.w, maxDisplayH / data.h);
+      const dispW = Math.round(data.w * displayScale);
+      const dispH = Math.round(data.h * displayScale);
+
+      container.style.width = dispW + 'px';
+      container.style.height = dispH + 'px';
+
+      const encTheme = encodeURIComponent(data.theme);
+      const itemMap = new Map(data.items.map(i => [i.nodeId, i]));
+      const useComps = isAdapted && document.getElementById('useComponents').checked && state.uiComponents;
+      const showCompFrames = document.getElementById('showCompFrames').checked;
+
+      if (!useComps) {
+        container.innerHTML = '';
+        for (const item of data.items) {
+          if (!item.visible || item.clippedOut || item.w <= 0 || item.h <= 0) continue;
+          if (item.tagLower === 'button') continue;
+          container.appendChild(buildLayerDiv(item, displayScale, encTheme));
+        }
+      } else {
+        const cacheKey = `${data.theme}::${data.w}x${data.h}::${data.algo}`;
+        if (container.dataset.cacheKey !== cacheKey) {
+          container.innerHTML = '';
+          container.dataset.cacheKey = cacheKey;
+
+          const baseRoot = document.createElement('div');
+          baseRoot.className = 'stage-layers-root';
+          container.appendChild(baseRoot);
+
+          for (const dw of state.uiComponents.drawers || []) {
+            const dwEl = document.createElement('hw-drawer');
+            dwEl.setAttribute('drawer-id', dw.id);
+            dwEl.setAttribute('state-var', dw.stateVar);
+            dwEl.setAttribute('direction', dw.direction);
+            dwEl.setAttribute('label', dw.label);
+            dwEl.setAttribute('show-handle', 'true');
+            dwEl.addEventListener('hw-drawer-dismiss', () => {
+              dispatchInteraction({ type: 'var_set', varName: dw.stateVar, varValue: dw.closedValue });
+            });
+            container.appendChild(dwEl);
+          }
+
+          const ovRoot = document.createElement('div');
+          ovRoot.className = 'stage-overlays';
+          container.appendChild(ovRoot);
+        }
+
+        const baseRoot = container.querySelector(':scope > .stage-layers-root');
+        const ovRoot = container.querySelector(':scope > .stage-overlays');
+        baseRoot.innerHTML = '';
+        ovRoot.innerHTML = '';
+
+        // Index drawers & imageSwitchers
+        const bindings = data.nodeBindings?.byNodeId || state.uiComponents.nodeBindings?.byNodeId || {};
+        const switcherById = new Map((state.uiComponents.imageSwitchers || []).map(s => [s.id, s]));
+        const drawerElsById = new Map();
+        for (const dwEl of container.querySelectorAll(':scope > hw-drawer')) {
+          const did = dwEl.getAttribute('drawer-id');
+          drawerElsById.set(did, dwEl);
+          dwEl.surface.querySelectorAll(':scope > .layer-item, :scope > hw-image-switcher').forEach(n => n.remove());
+        }
+
+        const mountedSwitchersInTurn = new Set();
+        const mountIntoParent = (parent, item) => {
+          const b = bindings[item.nodeId];
+          const swId = b?.imageSwitcherId;
+          if (swId && switcherById.has(swId)) {
+            if (mountedSwitchersInTurn.has(swId)) return;
+            mountedSwitchersInTurn.add(swId);
+            const sw = switcherById.get(swId);
+            const swEl = document.createElement('hw-image-switcher');
+            swEl.setAttribute('switcher-id', sw.id);
+            swEl.setAttribute('state-var', sw.stateVar);
+            swEl.setAttribute('transition', sw.transition || 'fade');
+            if (showCompFrames) swEl.setAttribute('data-comp-frame', 'true');
+            const activeVal = (data.switcherStates && sw.id in data.switcherStates)
+              ? data.switcherStates[sw.id]
+              : (state.liveVars[sw.stateVar] ?? sw.initialValue);
+            swEl.setAttribute('active-value', String(activeVal));
+            swEl.style.left = (item.x * displayScale) + 'px';
+            swEl.style.top = (item.y * displayScale) + 'px';
+            swEl.style.width = (item.w * displayScale) + 'px';
+            swEl.style.height = (item.h * displayScale) + 'px';
+            for (const sl of sw.slots || []) {
+              const fig = document.createElement('figure');
+              fig.className = 'hw-slot';
+              fig.setAttribute('data-val', String(sl.value));
+              const img = document.createElement('img');
+              img.src = `/api/theme/${encTheme}/asset/${encodeURIComponent(sl.asset).replace(/%2F/g, '/')}`;
+              img.style.objectFit = item.scaleType === 'center_crop' ? 'cover' : 'fill';
+              fig.appendChild(img);
+              swEl.appendChild(fig);
+            }
+            swEl.addEventListener('hw-image-switch', (ev) => {
+              dispatchInteraction({ type: 'var_set', varName: ev.detail.stateVar, varValue: ev.detail.value });
+            });
+            parent.appendChild(swEl);
+            return;
+          }
+          parent.appendChild(buildLayerDiv(item, displayScale, encTheme));
+        };
+
+        for (const item of data.items) {
+          if (!item.visible || item.clippedOut || item.w <= 0 || item.h <= 0) continue;
+          if (item.tagLower === 'button') continue;
+          const b = bindings[item.nodeId];
+          const dwEl = b?.drawerId ? drawerElsById.get(b.drawerId) : null;
+          if (dwEl) {
+            mountIntoParent(dwEl.surface, item);
+          } else {
+            mountIntoParent(baseRoot, item);
+          }
+        }
+
+        // Toggle open attribute via rAF for smooth slide-in/slide-out transitions
+        for (const dw of state.uiComponents.drawers || []) {
+          const dwEl = drawerElsById.get(dw.id);
+          if (!dwEl) continue;
+          const isOpen = Boolean(data.drawerStates?.[dw.id]) ||
+            dwEl.surface.querySelectorAll(':scope > .layer-item, :scope > hw-image-switcher').length > 0;
+          if (isOpen) {
+            requestAnimationFrame(() => dwEl.setAttribute('open', ''));
+          } else {
+            dwEl.removeAttribute('open');
+          }
+        }
+      }
+
+      const overlayParent = useComps ? container.querySelector(':scope > .stage-overlays') : container;
+
+      if (document.getElementById('showHinges').checked && state.currentDevice?.hinges?.length) {
+        for (const hg of state.currentDevice.hinges) {
+          const hl = document.createElement('div');
+          hl.className = 'hinge-line';
+          const hw = Math.max(4, (hg.width || 32) * displayScale);
+          hl.style.left = ((hg.pos * displayScale) - hw / 2) + 'px';
+          hl.style.width = hw + 'px';
+          hl.title = `折叠折痕 x=${hg.pos}`;
+          overlayParent.appendChild(hl);
+        }
+      }
+
+      if (isAdapted && document.getElementById('showContainers')?.checked && state.containerData?.containerTree) {
+        const boxes = state.containerData.macroBoxes || {};
+        for (const mc of state.containerData.containerTree.containers || []) {
+          if (mc.scene !== (data.scene || 'main')) continue;
+          if ((mc.childIds?.length || 0) < 2 && !mc.isCustomMerged && !mc.explicitOverride) continue;
+          const b = boxes[mc.id];
+          if (!b || b.w <= 0 || b.h <= 0) continue;
+          const co = document.createElement('div');
+          co.className = 'container-overlay';
+          co.style.left = (b.x * displayScale) + 'px';
+          co.style.top = (b.y * displayScale) + 'px';
+          co.style.width = Math.max(6, b.w * displayScale) + 'px';
+          co.style.height = Math.max(6, b.h * displayScale) + 'px';
+          co.innerHTML = `<span class="container-label">${escapeHtml(mc.id)} · ${escapeHtml(mc.intraLayout)} · ${escapeHtml(mc.align)}</span>`;
+          overlayParent.appendChild(co);
+        }
+      }
+
+      if (document.getElementById('showBbox').checked && data.components) {
+        for (const comp of data.components) {
+          if (comp.semanticRole === 'background' || comp.semanticRole === 'fullscreen_gesture') continue;
+          const boxes = comp.memberIds.map(id => itemMap.get(id)).filter(b => b && b.visible && b.w > 0 && b.h > 0);
+          if (boxes.length === 0) continue;
+          const minX = Math.min(...boxes.map(b => b.x));
+          const minY = Math.min(...boxes.map(b => b.y));
+          const maxX = Math.max(...boxes.map(b => b.x + b.w));
+          const maxY = Math.max(...boxes.map(b => b.y + b.h));
+          const ov = document.createElement('div');
+          ov.className = 'bbox-overlay';
+          const color = roleColors[comp.semanticRole] || '#38bdf8';
+          ov.style.borderColor = color;
+          ov.style.left = (minX * displayScale) + 'px';
+          ov.style.top = (minY * displayScale) + 'px';
+          ov.style.width = Math.max(4, (maxX - minX) * displayScale) + 'px';
+          ov.style.height = Math.max(4, (maxY - minY) * displayScale) + 'px';
+          ov.innerHTML = `<span class="bbox-label" style="color:${color}">${comp.id}·${comp.semanticRole}</span>`;
+          overlayParent.appendChild(ov);
+        }
+      }
+
+      if (isAdapted && document.getElementById('showHits').checked) {
+        for (const item of data.items) {
+          if (item.tagLower !== 'button' || !item.visible || item.w <= 0 || item.h <= 0) continue;
+          if (item.w >= data.w * 0.92 && item.h >= data.h * 0.92) continue;
+          const div = document.createElement('div');
+          div.className = 'hit-target';
+          div.style.left = (item.x * displayScale) + 'px';
+          div.style.top = (item.y * displayScale) + 'px';
+          div.style.width = Math.max(6, item.w * displayScale) + 'px';
+          div.style.height = Math.max(6, item.h * displayScale) + 'px';
+          div.title = `Button ${item.nodeId}`;
+          overlayParent.appendChild(div);
+        }
+      }
+    }
+
+    function renderTab() {
+      const body = document.getElementById('tabBody');
+      if (state.tab === 'states' && state.layoutAnalysis && state.stateMachine) {
+        const a = state.layoutAnalysis;
+        const rows = a.cells.map(c => `
+          <tr class="${c.stateId === state.activeStateId ? 'active-row' : ''}">
+            <td><a href="#" data-jump-state="${c.stateId}" style="color:var(--accent)">${escapeHtml(c.stateId)}</a></td>
+            <td>${c.stateCategory}</td>
+            <td>${c.visibleComponentCount}</td>
+            <td>+${c.exclusiveToState}/-${c.hiddenFromDefault}/⇄${c.shiftedCount}</td>
+            <td>${c.avgScale}×</td>
+            <td>${(c.fgAreaCoverage * 100).toFixed(0)}%</td>
+            <td>${c.oobCount}/${c.overlapPairs}/${c.hingeStraddleCount}</td>
+            <td><span class="badge ${c.passed ? 'ok' : 'warn'}">${c.passed ? 'PASS' : 'WARN'}</span></td>
+          </tr>
+        `).join('');
+        const trRows = (state.stateMachine.transitions || []).map(t => `
+          <tr>
+            <td>${escapeHtml(t.fromStateId)} → ${escapeHtml(t.toStateId)}</td>
+            <td>${escapeHtml(t.gesture)}</td>
+            <td>${escapeHtml(t.buttonNodeId || 'system')}</td>
+            <td><code>${escapeHtml(t.variable)}=${escapeHtml(t.targetValue)}</code></td>
+          </tr>
+        `).join('');
+        body.innerHTML = `
+          <div><b>当前设备:</b> ${escapeHtml(state.currentDevice?.label || '')} (${state.viewportW}×${state.viewportH}) · <b>模式:</b> ${escapeHtml(a.cells[0]?.layoutMode || '-')}</div>
+          <div style="margin-top:4px;color:var(--muted)">${a.stateCount} 个候选姿态 · ${state.stateMachine.summary.totalStateVars} 个状态变量</div>
+          <table>
+            <thead><tr><th>状态</th><th>分类</th><th>组件</th><th>±/位移</th><th>缩放</th><th>占屏</th><th>越/重/折</th><th>状态</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div style="margin-top:10px;font-weight:600;color:var(--accent)">推断的状态迁移线索</div>
+          <table>
+            <thead><tr><th>迁移</th><th>手势</th><th>按钮节点</th><th>变更变量</th></tr></thead>
+            <tbody>${trRows || '<tr><td colspan="4">无额外迁移</td></tr>'}</tbody>
+          </table>
+          <div style="margin-top:10px;font-weight:600;color:var(--accent)">关键响应分析</div>
+          <ul style="padding-left:16px;margin:4px 0;">
+            ${(a.insights || []).map(i => `<li>${escapeHtml(i)}</li>`).join('')}
+          </ul>
+          <div style="margin-top:10px;font-weight:600;color:var(--accent)">最近交互追踪</div>
+          <pre>${escapeHtml(state.traceHistory.map(t => `${t.time} ${t.msg}`).join('\n') || '暂无交互记录')}</pre>
+        `;
+        body.querySelectorAll('[data-jump-state]').forEach(el => {
+          el.addEventListener('click', (e) => {
+            e.preventDefault();
+            dispatchInteraction({ type: 'state_select', stateId: el.dataset.jumpState });
+          });
+        });
+      } else if (state.tab === 'containers' && state.containerData) {
+        const ct = state.containerData.containerTree;
+        const activeScene = state.stateMachine?.states?.find(s => s.id === state.activeStateId)?.sceneHint || 'main';
+        const sceneFgComps = (state.ir?.components || []).filter(
+          c => c.scene === activeScene && c.semanticRole !== 'background' && c.semanticRole !== 'fullscreen_gesture' && c.semanticRole !== 'hidden_utility'
+        );
+        const intraModes = ['proportional', 'flex_col', 'flex_row', 'grid_even', 'center_contain', 'align_edges'];
+        const aligns = ['center', 'start', 'end'];
+        const justifies = ['pack', 'center', 'space_between', 'space_evenly'];
+
+        const checkItems = sceneFgComps.map(c => `
+          <label class="mc-check-item" title="${escapeHtml(c.id)}">
+            <input type="checkbox" class="mc-pick" value="${escapeHtml(c.id)}" />
+            <span>${escapeHtml(c.id)} · ${escapeHtml(c.semanticRole)}</span>
+          </label>
+        `).join('');
+
+        const mcCards = (ct.containers || []).map(mc => {
+          const box = state.containerData.macroBoxes?.[mc.id] || mc.bbox;
+          return `
+            <div class="var-card">
+              <div class="var-head">
+                <strong>${escapeHtml(mc.id)} · ${escapeHtml(mc.label)}</strong>
+                <span class="badge ${mc.isCustomMerged ? 'warn' : 'ok'}">${mc.childIds.length} 子组件 · ${escapeHtml(mc.kind)}</span>
+              </div>
+              <div style="font-size:11px;color:var(--muted)">场景: ${escapeHtml(mc.scene)} · 包围盒 ${Math.round(box.w)}×${Math.round(box.h)} · 子项: <code>${escapeHtml(mc.childIds.join(', '))}</code></div>
+              <div class="mc-select-row">
+                <label>内布局:
+                  <select class="mc-cfg" data-mc-id="${escapeHtml(mc.id)}" data-prop="intraLayout">
+                    ${intraModes.map(m => `<option value="${m}" ${mc.intraLayout === m ? 'selected' : ''}>${m}</option>`).join('')}
+                  </select>
+                </label>
+                <label>对齐:
+                  <select class="mc-cfg" data-mc-id="${escapeHtml(mc.id)}" data-prop="align">
+                    ${aligns.map(a => `<option value="${a}" ${mc.align === a ? 'selected' : ''}>${a}</option>`).join('')}
+                  </select>
+                </label>
+                <label>间距:
+                  <select class="mc-cfg" data-mc-id="${escapeHtml(mc.id)}" data-prop="justify">
+                    ${justifies.map(j => `<option value="${j}" ${mc.justify === j ? 'selected' : ''}>${j}</option>`).join('')}
+                  </select>
+                </label>
+                ${mc.isCustomMerged ? `<button type="button" class="val-btn" data-unmerge="${escapeHtml(mc.id)}">拆散</button>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        body.innerHTML = `
+          <div style="margin-bottom:8px;">
+            <span class="badge ok">子组件 ${ct.summary.totalChildren} → 父容器 ${ct.summary.totalMacroContainers}</span>
+            <span class="badge ok">已合并大容器: ${ct.summary.mergedContainerCount}</span>
+            <span class="badge warn">压缩率 ${(ct.summary.compressionRatio * 100).toFixed(0)}%</span>
+          </div>
+          <div class="var-card">
+            <div class="var-head"><strong>手动合并多个子组件为整体大容器</strong><button type="button" id="btnResetContainers">恢复自动容器树</button></div>
+            <div class="mc-select-row">
+              <input type="text" id="mcLabelInput" placeholder="容器名称 (如: 日期天气组合)" style="flex:1;min-width:120px;" />
+              <select id="mcLayoutPick">
+                ${intraModes.map(m => `<option value="${m}" ${m === 'flex_col' ? 'selected' : ''}>${m}</option>`).join('')}
+              </select>
+              <button type="button" id="btnMergeSelected" class="primary">合并为整体</button>
+            </div>
+            <div class="mc-check-list">${checkItems || '<span style="color:var(--muted)">当前场景无可合并前景组件</span>'}</div>
+          </div>
+          <div style="font-weight:600;color:var(--accent);margin:8px 0 6px;">父子容器列表 (Level-1 大容器 → Level-2 内部布局)</div>
+          ${mcCards}
+        `;
+
+        const sendContainerConfig = async (payload) => {
+          const enc = encodeURIComponent(state.currentTheme);
+          if (state.algo === 'hwflex') {
+            state.algo = 'hierarchical_v1';
+            document.getElementById('algoSelect').value = 'hierarchical_v1';
+          }
+          await fetch(`/api/theme/${enc}/containers/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          await loadThemeData();
+        };
+
+        document.getElementById('btnMergeSelected')?.addEventListener('click', () => {
+          const picked = Array.from(body.querySelectorAll('.mc-pick:checked')).map(el => el.value);
+          if (picked.length < 1) return;
+          const label = document.getElementById('mcLabelInput').value.trim() || `自定义容器 (${picked.length})`;
+          const intraLayout = document.getElementById('mcLayoutPick').value;
+          sendContainerConfig({ action: 'merge', scene: activeScene, label, childIds: picked, intraLayout });
+        });
+        document.getElementById('btnResetContainers')?.addEventListener('click', () => {
+          sendContainerConfig({ action: 'reset' });
+        });
+        body.querySelectorAll('[data-unmerge]').forEach(btn => {
+          btn.addEventListener('click', () => sendContainerConfig({ action: 'unmerge', groupId: btn.dataset.unmerge }));
+        });
+        body.querySelectorAll('.mc-cfg').forEach(sel => {
+          sel.addEventListener('change', () => {
+            sendContainerConfig({
+              action: 'update',
+              containerId: sel.dataset.mcId,
+              patch: { [sel.dataset.prop]: sel.value, explicitOverride: true },
+            });
+          });
+        });
+      } else if (state.tab === 'components' && state.uiComponents) {
+        const u = state.uiComponents;
+        const encTheme = encodeURIComponent(state.currentTheme || '');
+        const drawerCards = (u.drawers || []).map(d => {
+          const curVal = d.stateVar in state.liveVars ? state.liveVars[d.stateVar] : d.closedValue;
+          const isOpen = String(curVal) === String(d.openValue);
+          const box = state.uiComponentBoxes?.drawerBoxes?.[d.id] || d.origBBox;
+          return `
+            <div class="var-card">
+              <div class="var-head">
+                <strong>&lt;hw-drawer&gt; ${escapeHtml(d.id)}</strong>
+                <span class="badge ${isOpen ? 'ok' : 'warn'}">${escapeHtml(d.direction)} · ${d.memberNodeIds.length} 层</span>
+              </div>
+              <div style="font-size:11px;color:var(--muted)">${escapeHtml(d.label)} · 变量 <code>${escapeHtml(d.stateVar)}</code> (${escapeHtml(d.closedValue)}⇄${escapeHtml(d.openValue)}) · ${Math.round(box.w)}×${Math.round(box.h)}</div>
+              <div style="margin-top:5px;">
+                <button class="val-btn ${isOpen ? 'active' : ''}" data-drawer-toggle="${escapeHtml(d.id)}">${isOpen ? '收起滑窗' : '展开滑窗'}</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        const swCards = (u.imageSwitchers || []).map(sw => {
+          const curVal = sw.stateVar in state.liveVars ? state.liveVars[sw.stateVar] : sw.initialValue;
+          const box = state.uiComponentBoxes?.switcherBoxes?.[sw.id] || sw.origBBox;
+          const thumbs = (sw.slots || []).map(sl => `
+            <button type="button" class="thumb-slot ${String(curVal) === String(sl.value) ? 'active' : ''}" data-sw-var="${escapeHtml(sw.stateVar)}" data-sw-val="${escapeHtml(sl.value)}" title="${escapeHtml(sl.asset)}">
+              <img src="/api/theme/${encTheme}/asset/${encodeURIComponent(sl.asset).replace(/%2F/g, '/')}" />
+              <span>${escapeHtml(sl.value)}</span>
+            </button>
+          `).join('');
+          return `
+            <div class="var-card">
+              <div class="var-head">
+                <strong>&lt;hw-image-switcher&gt; ${escapeHtml(sw.id)}</strong>
+                <span class="badge ok">${escapeHtml(sw.kind)} · ${sw.slots.length} 态</span>
+              </div>
+              <div style="font-size:11px;color:var(--muted)">${escapeHtml(sw.label)} · 变量 <code>${escapeHtml(sw.stateVar)}</code> · ${Math.round(box.w)}×${Math.round(box.h)}</div>
+              <div class="thumb-grid">${thumbs}</div>
+            </div>
+          `;
+        }).join('');
+
+        body.innerHTML = `
+          <div style="margin-bottom:8px;">
+            <span class="badge ok">滑窗 &lt;hw-drawer&gt;: ${u.summary.drawerCount}</span>
+            <span class="badge ok">图片切换容器 &lt;hw-image-switcher&gt;: ${u.summary.imageSwitcherCount}</span>
+            <span class="badge warn">srcid: ${u.summary.srcidSwitcherCount} / 叠层slot: ${u.summary.visStackSwitcherCount}</span>
+          </div>
+          <div style="font-weight:600;color:var(--accent);margin:6px 0;">滑窗组件 (&lt;hw-drawer&gt;)</div>
+          ${drawerCards || '<div style="color:var(--muted);margin-bottom:8px;">当前主题未包含独立滑窗组件</div>'}
+          <div style="font-weight:600;color:var(--accent);margin:10px 0 6px;">容器嵌入式图片切换 (&lt;hw-image-switcher&gt;)</div>
+          ${swCards || '<div style="color:var(--muted);">当前主题未包含嵌入式多图切换容器</div>'}
+        `;
+        body.querySelectorAll('[data-drawer-toggle]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const d = (u.drawers || []).find(x => x.id === btn.dataset.drawerToggle);
+            if (!d) return;
+            const curVal = d.stateVar in state.liveVars ? state.liveVars[d.stateVar] : d.closedValue;
+            const isOpen = String(curVal) === String(d.openValue);
+            dispatchInteraction({
+              type: 'var_set',
+              varName: d.stateVar,
+              varValue: isOpen ? d.closedValue : d.openValue,
+            });
+          });
+        });
+        body.querySelectorAll('[data-sw-var]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const raw = btn.dataset.swVal;
+            const num = Number(raw);
+            dispatchInteraction({
+              type: 'var_set',
+              varName: btn.dataset.swVar,
+              varValue: Number.isFinite(num) && raw !== '' ? num : raw,
+            });
+          });
+        });
+      } else if (state.tab === 'vars' && state.stateMachine) {
+        const cards = (state.stateMachine.stateVars || []).map(sv => {
+          const curVal = sv.name in state.liveVars ? state.liveVars[sv.name] : sv.initialValue;
+          const allVals = [...new Set([sv.initialValue, ...sv.domain])];
+          const btns = allVals.map(v => `
+            <button class="val-btn ${String(curVal) === String(v) ? 'active' : ''}" data-var="${escapeHtml(sv.name)}" data-val="${escapeHtml(v)}">${escapeHtml(v)}</button>
+          `).join('');
+          return `
+            <div class="var-card">
+              <div class="var-head">
+                <strong>${escapeHtml(sv.name)}</strong>
+                <span class="badge ok">${escapeHtml(sv.category)} · 影响分 ${sv.impactScore}</span>
+              </div>
+              <div style="font-size:11px;color:var(--muted)">${escapeHtml(sv.label)} · 当前=${escapeHtml(curVal)}</div>
+              <div>${btns}</div>
+            </div>
+          `;
+        }).join('');
+        body.innerHTML = cards || '未检测到可变状态变量';
+        body.querySelectorAll('.val-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const raw = btn.dataset.val;
+            const num = Number(raw);
+            dispatchInteraction({
+              type: 'var_set',
+              varName: btn.dataset.var,
+              varValue: Number.isFinite(num) && raw !== '' ? num : raw,
+            });
+          });
+        });
+      } else if (state.tab === 'metrics' && state.validation) {
+        const v = state.validation;
+        const counts = v.resources?.counts;
+        const expressions = v.expressionDiagnostics?.source || [];
+        const missing = v.resources?.issues?.filter(issue => issue.status === 'missing') || [];
+        const rows = v.viewports.map(vp => `
+          <tr>
+            <td>${vp.id}</td>
+            <td>${(vp.bgCoverage * 100).toFixed(0)}%</td>
+            <td>${vp.oobCount}</td>
+            <td>${vp.overlapPairs}</td>
+            <td>${vp.sceneLeakCount ?? 0}</td>
+            <td>${vp.mutatedLogicCount ?? 0}</td>
+            <td>${vp.hingeStraddleCount ?? 0}</td>
+            <td><span class="badge ${vp.passed ? 'ok' : 'bad'}">${vp.passed ? 'PASS' : 'WARN'}</span></td>
+          </tr>
+        `).join('');
+        body.innerHTML = `
+          <div>XML: <span class="badge ${v.xmlValid ? 'ok' : 'bad'}">${v.xmlValid}</span>
+          &nbsp;标签完整: <span class="badge ${v.preservedTags ? 'ok' : 'bad'}">${v.preservedTags}</span></div>
+          <div style="margin-top:6px;color:var(--muted)">画布: ${state.ir.canvas.baseW}×${state.ir.canvas.baseH} · 算法: ${state.algo}</div>
+          ${counts ? `<div style="margin-top:6px">资源缺失 ${counts.missing} · 动态引用 ${counts.dynamic} · 外部引用 ${counts.external} · 源表达式诊断 ${expressions.length}</div>` : ''}
+          ${missing.length ? `<details><summary>缺失资源</summary><pre>${escapeHtml(missing.map(item => `${item.nodeId} ${item.attribute}=${item.value}`).join('\n'))}</pre></details>` : ''}
+          <table>
+            <thead><tr><th>设备</th><th>背景</th><th>越界</th><th>重叠</th><th>串场</th><th>逻辑</th><th>折痕</th><th>状态</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      } else if (state.tab === 'html' && state.html) {
+        body.innerHTML = `<pre>${escapeHtml(state.html.slice(0, 18000))}</pre>`;
+      } else if (state.tab === 'css' && state.css) {
+        body.innerHTML = `<pre>${escapeHtml(state.css.slice(0, 18000))}</pre>`;
+      } else if (state.tab === 'interactions' && state.interactions) {
+        body.innerHTML = `<pre>${escapeHtml(JSON.stringify(state.interactions, null, 2).slice(0, 18000))}</pre>`;
+      } else if (state.tab === 'ir' && state.ir) {
+        body.innerHTML = `<pre>${escapeHtml(JSON.stringify({
+          canvas: state.ir.canvas,
+          scenes: state.ir.scenes,
+          stats: state.ir.stats,
+          components: state.ir.components,
+        }, null, 2).slice(0, 18000))}</pre>`;
+      } else if (state.tab === 'xml' && state.xml) {
+        body.innerHTML = `<pre>${escapeHtml(state.xml.slice(0, 18000))}</pre>`;
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    init();
+  </script>
+</body>
+</html>

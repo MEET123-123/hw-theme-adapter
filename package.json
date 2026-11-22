@@ -1,0 +1,23 @@
+{
+  "name": "hw-theme-adapter",
+  "version": "1.0.0",
+  "description": "Frontend-inspired ThemeDOM transpiler & responsive multi-resolution layout compiler for Huawei Lockscreen .hwt themes",
+  "type": "module",
+  "main": "src/cli.js",
+  "scripts": {
+    "test": "node --test test/pipeline.test.js",
+    "audit": "node src/cli.js audit",
+    "adapt": "node src/cli.js adapt --all",
+    "validate": "node src/cli.js validate --all",
+    "preview": "node src/cli.js preview"
+  },
+  "keywords": [
+    "huawei",
+    "theme",
+    "hwt",
+    "responsive",
+    "multi-resolution",
+    "transpiler"
+  ],
+  "license": "MIT"
+}
